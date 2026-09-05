@@ -1,0 +1,111 @@
+@model web.ViewModels.TranscriptionSectionViewModel
+@using web.Infrastructure
+@using web.Constants
+
+@{
+    var jobActive = Model.ActiveJobId.HasValue;
+    var canStart = !jobActive && Model.HasFiles && Model.AiGatewayOnline && Model.AvailableModels.Count > 0;
+    var selectedModelOption = Model.AvailableModels.FirstOrDefault(m => m.Id == Model.SelectedModel);
+    var availableLanguageCodes = selectedModelOption?.LanguageCodes ?? new List<string>();
+
+    string LanguageLabel(string code) => TranscriptionLanguages.All.FirstOrDefault(l => l.Code == code).Label ?? code;
+}
+
+@if (!Model.AiGatewayOnline)
+{
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div>Kunne ikke hente modeller fra AiGateway. Prøv igen senere.</div>
+    </div>
+}
+else if (Model.AvailableModels.Count == 0)
+{
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div>Ingen transskriptionsmodeller fundet på AiGateway.</div>
+    </div>
+}
+
+@if (!Model.HasFiles)
+{
+    <p class="text-muted mb-3">Upload mindst én lydfil for at kunne transskribere.</p>
+}
+
+@if (jobActive)
+{
+    <div class="alert alert-info d-flex align-items-center gap-2 mb-3">
+        <i class="bi bi-hourglass-split"></i>
+        <div>Transskription kører i baggrunden. Du kan roligt lukke siden - resultatet er her, når du kommer tilbage.</div>
+    </div>
+}
+
+<form id="startTranscriptionForm" asp-controller="Lecture" asp-action="StartTranscription" asp-route-id="@Model.LectureId" method="post" data-active-job-id="@Model.ActiveJobId">
+    @Html.AntiForgeryToken()
+    <div class="row g-3 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label">Model</label>
+            <select name="model" id="transcriptionModelSelect" class="form-select" required disabled="@(!canStart)">
+                @foreach (var modelOption in Model.AvailableModels)
+                {
+                    <option value="@modelOption.Id" data-languages="@string.Join(",", modelOption.LanguageCodes)" selected="@(modelOption.Id == Model.SelectedModel)">@modelOption.Id</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Sprog</label>
+            <select name="language" id="transcriptionLanguageSelect" class="form-select" disabled="@(!canStart)">
+                <option value="" selected="@(string.IsNullOrEmpty(Model.SelectedLanguage))">Auto-detekt</option>
+                @foreach (var code in availableLanguageCodes)
+                {
+                    <option value="@code" selected="@(code == Model.SelectedLanguage)">@LanguageLabel(code)</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary w-100" disabled="@(!canStart)">
+                @if (jobActive)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> <text>Transskriberer...</text>
+                }
+                else
+                {
+                    <i class="bi bi-play-fill me-1"></i> @(Model.CurrentVersion is null ? "Start" : "Kør igen")
+                }
+            </button>
+        </div>
+    </div>
+</form>
+
+@if (Model.CurrentVersion is not null)
+{
+    var currentLanguageLabel = string.IsNullOrEmpty(Model.CurrentVersion.Language) ? null : LanguageLabel(Model.CurrentVersion.Language);
+    <div class="mt-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div class="d-flex align-items-center gap-2">
+                <label class="form-label mb-0" for="transcriptionVersionSelect">Version</label>
+                <select id="transcriptionVersionSelect" class="form-select form-select-sm" style="width: auto;">
+                    @foreach (var v in Model.VersionSummaries)
+                    {
+                        <option value="@v.VersionNumber" selected="@(v.VersionNumber == Model.CurrentVersion.VersionNumber)">
+                            Version @v.VersionNumber (@v.CreatedAtUtc.ToLocalTime().ToString("g"))
+                        </option>
+                    }
+                </select>
+                <button type="button" id="improveTranscriptBtn" class="btn btn-sm btn-secondary btn-icon" title="Tekstforbedring (fjerner gentagelser - gemmes ikke)" aria-label="Tekstforbedring">
+                    <i class="bi bi-magic"></i>
+                </button>
+                <button type="button" id="copyTranscriptBtn" class="btn btn-sm btn-secondary btn-icon" title="Kopiér til udklipsholder" aria-label="Kopiér til udklipsholder">
+                    <i class="bi bi-clipboard"></i>
+                </button>
+            </div>
+            <span class="text-muted small">
+                Model: @Model.CurrentVersion.Model
+                @if (!string.IsNullOrEmpty(currentLanguageLabel))
+                {
+                    <text> &middot; Sprog: @currentLanguageLabel</text>
+                }
+            </span>
+        </div>
+        <textarea id="transcriptionResultTextarea" class="form-control" rows="14" readonly>@TranscriptFormatter.CombineSegments(Model.CurrentVersion.Segments)</textarea>
+    </div>
+}

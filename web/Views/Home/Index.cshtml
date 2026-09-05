@@ -1,0 +1,73 @@
+@model web.ViewModels.LectureListViewModel
+@using web.Infrastructure
+
+<div>
+    <div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+        <div>
+            <h1><i class="bi bi-mic-fill me-2"></i>Lektioner</h1>
+            <p>Opret en lektion og upload lydfiler, der skal transskriberes</p>
+        </div>
+        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createLectureModal">
+            <i class="bi bi-plus-lg me-1"></i> Opret lektion
+        </button>
+    </div>
+
+    @if (Model.Lectures.Count == 0)
+    {
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-mic text-muted" style="font-size: 2.5rem;"></i>
+                <p class="text-muted mt-3 mb-3">Du har endnu ikke oprettet nogen lektioner.</p>
+                <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createLectureModal">
+                    <i class="bi bi-plus-lg me-1"></i> Opret din første lektion
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="lecture-grid">
+            @foreach (var lecture in Model.Lectures)
+            {
+                <a class="lecture-card" asp-controller="Lecture" asp-action="Details" asp-route-id="@lecture.Id">
+                    <div class="lecture-card-icon"><i class="bi bi-mic-fill"></i></div>
+                    <div class="lecture-card-body">
+                        <h3>@lecture.Name</h3>
+                        <p>
+                            <i class="bi bi-file-earmark-music me-1"></i>
+                            @(lecture.FileCount == 1 ? "1 fil" : $"{lecture.FileCount} filer")
+                        </p>
+                        <p class="lecture-card-date">Oprettet @lecture.CreatedAtUtc.ToLocalTime().ToString("d. MMM yyyy")</p>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+</div>
+
+<!-- Opret lektion modal -->
+<div class="modal fade" id="createLectureModal" tabindex="-1" aria-labelledby="createLectureModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-controller="Home" asp-action="Create" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createLectureModalLabel"><i class="bi bi-plus-lg me-2"></i>Opret lektion</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Luk"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Navn</label>
+                    <input name="Name" class="form-control" placeholder="F.eks. Jura" maxlength="200" required autofocus />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i> Annuller
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-floppy2 me-1"></i> Opret
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

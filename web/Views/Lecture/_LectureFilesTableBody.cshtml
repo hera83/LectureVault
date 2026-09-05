@@ -1,0 +1,60 @@
+@model web.ViewModels.LectureDetailsViewModel
+@using web.Infrastructure
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th style="width: 3rem;">#</th>
+                <th>Filnavn</th>
+                <th>Størrelse</th>
+                <th>Uploadet</th>
+                <th class="text-end">Handlinger</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Files.Count == 0)
+            {
+                <tr>
+                    <td colspan="5" class="text-muted">Ingen filer uploadet endnu.</td>
+                </tr>
+            }
+            else
+            {
+                for (var i = 0; i < Model.Files.Count; i++)
+                {
+                    var file = Model.Files[i];
+                    var isFirst = i == 0;
+                    var isLast = i == Model.Files.Count - 1;
+                    <tr>
+                        <td class="text-muted">@(i + 1)</td>
+                        <td><i class="bi bi-file-earmark-music me-2 text-muted"></i>@file.OriginalFileName</td>
+                        <td>@ByteSizeFormatter.Format(file.FileSizeBytes)</td>
+                        <td>@file.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                <button class="btn btn-sm btn-secondary btn-icon" type="button" data-move-file-up="@file.Id"
+                                        disabled="@isFirst" title="Flyt op" aria-label="Flyt op">
+                                    <i class="bi bi-arrow-up"></i>
+                                </button>
+                                <button class="btn btn-sm btn-secondary btn-icon" type="button" data-move-file-down="@file.Id"
+                                        disabled="@isLast" title="Flyt ned" aria-label="Flyt ned">
+                                    <i class="bi bi-arrow-down"></i>
+                                </button>
+                                <a class="btn btn-sm btn-secondary btn-icon" asp-controller="Lecture" asp-action="Download" asp-route-fileId="@file.Id"
+                                   title="Download" aria-label="Download">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                <button class="btn btn-sm btn-secondary btn-icon" type="button" data-bs-toggle="modal" data-bs-target="#deleteFileModal"
+                                        data-id="@file.Id" data-name="@file.OriginalFileName"
+                                        title="Slet" aria-label="Slet">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>

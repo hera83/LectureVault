@@ -1,0 +1,391 @@
+@model web.ViewModels.LectureDetailsViewModel
+
+<div>
+    <div class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+        <div>
+            <a asp-controller="Home" asp-action="Index" class="text-muted text-decoration-none small d-inline-flex align-items-center mb-1">
+                <i class="bi bi-arrow-left me-1"></i> Lektioner
+            </a>
+            <h1><i class="bi bi-mic-fill me-2"></i>@Model.Name</h1>
+            <p>Oprettet @Model.CreatedAtUtc.ToLocalTime().ToString("d. MMM yyyy 'kl.' HH:mm")</p>
+        </div>
+        <button class="btn btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#deleteLectureModal">
+            <i class="bi bi-trash me-1"></i> Slet lektion
+        </button>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header"><i class="bi bi-cloud-upload"></i> Upload lydfiler</div>
+        <div class="card-body">
+            <form id="uploadFilesForm" asp-controller="Lecture" asp-action="Upload" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-9">
+                        <label class="form-label">Lydfiler</label>
+                        <input type="file" name="files" class="form-control" accept="audio/*" multiple required />
+                        <div class="form-text">Kun lydfiler accepteres (mp3, wav, m4a, aac, ogg, flac m.fl.) — du kan uploade flere ad gangen, eller supplere senere.</div>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100" id="uploadFilesSubmit">
+                            <i class="bi bi-cloud-upload me-1"></i> Upload
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header"><i class="bi bi-file-earmark-music"></i> Filregistrering</div>
+        <div class="card-body">
+            <div data-table-root id="lectureFilesRoot" data-table-endpoint="@Url.Action("FilesTable", new { id = Model.Id })">
+                <div data-table-region>
+                    @await Html.PartialAsync("_LectureFilesTableBody", Model)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><i class="bi bi-soundwave"></i> Transskription</div>
+        <div class="card-body">
+            <div id="transcriptionSectionRoot" data-lecture-id="@Model.Id">
+                <div id="transcriptionSectionRegion">
+                    @await Html.PartialAsync("_TranscriptionSection", Model.Transcription)
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slet fil modal -->
+<div class="modal fade" id="deleteFileModal" tabindex="-1" aria-labelledby="deleteFileModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteFileModalLabel"><i class="bi bi-trash me-2"></i>Slet fil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Luk"></button>
+            </div>
+            <div class="modal-body">
+                Er du sikker på, at du vil slette filen <strong id="deleteFileName"></strong>? Denne handling kan ikke fortrydes.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i> Annuller
+                </button>
+                <form id="deleteFileForm" asp-controller="Lecture" asp-action="DeleteFile" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="fileId" id="deleteFileId" />
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i> Slet
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slet lektion modal -->
+<div class="modal fade" id="deleteLectureModal" tabindex="-1" aria-labelledby="deleteLectureModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteLectureModalLabel"><i class="bi bi-trash me-2"></i>Slet lektion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Luk"></button>
+            </div>
+            <div class="modal-body">
+                Er du sikker på, at du vil slette lektionen <strong>@Model.Name</strong> og alle @Model.Files.Count uploadede fil(er)? Denne handling kan ikke fortrydes.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i> Annuller
+                </button>
+                <form asp-controller="Lecture" asp-action="Delete" asp-route-id="@Model.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i> Slet
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (() => {
+        const filesRoot = document.getElementById('lectureFilesRoot');
+        const transcriptionRoot = document.getElementById('transcriptionSectionRoot');
+        const transcriptionRegion = document.getElementById('transcriptionSectionRegion');
+        const lectureId = transcriptionRoot?.dataset.lectureId;
+
+        const reloadTranscriptionSection = async (version) => {
+            if (!transcriptionRegion || !lectureId) return;
+            const url = `/Lecture/TranscriptionSection?id=${lectureId}` + (version ? `&version=${version}` : '');
+            const res = await fetch(url, { headers: { 'X-Requested-With': 'fetch' } });
+            if (res.ok) transcriptionRegion.innerHTML = await res.text();
+            startPollingIfJobActive();
+        };
+
+        // ── Transcription: poll a running background job every 5s ──────────────
+        // Picks up an already-running job on page load too (data-active-job-id is
+        // rendered server-side), so re-opening a lecture with a job in flight resumes
+        // watching it without needing to click Start again.
+        let pollTimer = null;
+
+        const stopPolling = () => {
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = null;
+        };
+
+        const checkJobStatus = async (jobId) => {
+            try {
+                const res = await fetch(`/Lecture/JobStatus?jobId=${jobId}`, { headers: { 'X-Requested-With': 'fetch' } });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data.active) {
+                    stopPolling();
+                    if (data.status === 'Failed') {
+                        window.FvToast?.show('error', data.errorMessage || 'Transskriptionen fejlede.');
+                    }
+                    await reloadTranscriptionSection();
+                }
+            } catch {
+                // Network hiccup - just try again on the next tick.
+            }
+        };
+
+        const startPollingIfJobActive = () => {
+            stopPolling();
+            const jobId = transcriptionRoot?.querySelector('#startTranscriptionForm')?.dataset.activeJobId;
+            if (!jobId) return;
+            pollTimer = setInterval(() => checkJobStatus(jobId), 5000);
+        };
+
+        // Mirrors Constants/TranscriptionLanguages.cs - only used to label a model's supported
+        // language codes client-side when the Sprog dropdown is rebuilt after a model change.
+        const languageLabels = {
+            '': 'Auto-detekt', da: 'Dansk', en: 'Engelsk', de: 'Tysk', sv: 'Svensk', no: 'Norsk',
+            fr: 'Fransk', es: 'Spansk', it: 'Italiensk', nl: 'Nederlandsk', pl: 'Polsk', fi: 'Finsk'
+        };
+
+        const rebuildLanguageOptions = (modelSelect) => {
+            const languageSelect = modelSelect.closest('form')?.querySelector('#transcriptionLanguageSelect');
+            if (!languageSelect) return;
+            const codes = (modelSelect.selectedOptions[0]?.dataset.languages || '').split(',').filter(Boolean);
+            const previousValue = languageSelect.value;
+
+            languageSelect.innerHTML = '';
+            [''].concat(codes).forEach((code) => {
+                const option = document.createElement('option');
+                option.value = code;
+                option.textContent = languageLabels[code] || code;
+                languageSelect.appendChild(option);
+            });
+            languageSelect.value = codes.includes(previousValue) ? previousValue : '';
+        };
+
+        // ── Upload ───────────────────────────────────────────────────────────
+        const uploadForm = document.getElementById('uploadFilesForm');
+        uploadForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('uploadFilesSubmit');
+            submitBtn.disabled = true;
+            const originalHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Uploader...';
+
+            const data = await window.FvForm.submit(uploadForm);
+
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalHtml;
+
+            if (data.type !== 'error') {
+                uploadForm.reset();
+                window.FvDataTable?.reload(filesRoot);
+                reloadTranscriptionSection();
+            }
+        });
+
+        // ── Delete file ──────────────────────────────────────────────────────
+        const deleteFileModal = document.getElementById('deleteFileModal');
+        deleteFileModal?.addEventListener('show.bs.modal', (event) => {
+            const btn = event.relatedTarget;
+            if (!btn) return;
+            document.getElementById('deleteFileId').value = btn.dataset.id;
+            document.getElementById('deleteFileName').textContent = btn.dataset.name;
+        });
+
+        const deleteFileForm = document.getElementById('deleteFileForm');
+        deleteFileForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = await window.FvForm.submit(deleteFileForm);
+            if (data.success) {
+                bootstrap.Modal.getInstance(deleteFileModal)?.hide();
+                window.FvDataTable?.reload(filesRoot);
+                reloadTranscriptionSection();
+            }
+        });
+
+        // ── Reorder files (event-delegated - rows are replaced on every table reload) ──
+        // This also decides the order files are transcribed in, so it reloads the
+        // Filregistrering table only (nothing here changes an already-stored transcript).
+        const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+        filesRoot?.addEventListener('click', async (e) => {
+            const btn = e.target.closest('[data-move-file-up], [data-move-file-down]');
+            if (!btn || btn.disabled) return;
+
+            const isUp = btn.hasAttribute('data-move-file-up');
+            const fileId = btn.dataset.moveFileUp || btn.dataset.moveFileDown;
+            btn.disabled = true;
+
+            try {
+                await fetch(`/Lecture/${isUp ? 'MoveFileUp' : 'MoveFileDown'}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'fetch' },
+                    body: `fileId=${encodeURIComponent(fileId)}&__RequestVerificationToken=${encodeURIComponent(antiForgeryToken || '')}`
+                });
+            } finally {
+                window.FvDataTable?.reload(filesRoot);
+            }
+        });
+
+        // ── Transcription: start / re-run (event-delegated - the region's
+        //    contents are replaced wholesale on every reload) ────────────────
+        transcriptionRoot?.addEventListener('submit', async (e) => {
+            const form = e.target.closest('#startTranscriptionForm');
+            if (!form) return;
+            e.preventDefault();
+
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            const originalHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Transskriberer...';
+
+            const data = await window.FvForm.submit(form);
+
+            if (data.type !== 'error') {
+                await reloadTranscriptionSection();
+            } else {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalHtml;
+            }
+        });
+
+        // ── Transcription: browse versions ──────────────────────────────────
+        transcriptionRoot?.addEventListener('change', (e) => {
+            const versionSelect = e.target.closest('#transcriptionVersionSelect');
+            if (versionSelect) {
+                reloadTranscriptionSection(versionSelect.value);
+                return;
+            }
+
+            const modelSelect = e.target.closest('#transcriptionModelSelect');
+            if (modelSelect) {
+                rebuildLanguageOptions(modelSelect);
+            }
+        });
+
+        // ── Transcription: text cleanup ("Tekstforbedring") ─────────────────
+        // Purely client-side and display-only by design: it edits the <textarea> in the
+        // browser and nothing is ever sent to the server, so a reload always shows the
+        // original transcript again - there is nothing to "undo" server-side.
+        const normalizeToken = (w) => w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+
+        // Collapses immediate repeated word/phrase runs (ASR "stutter" artifacts, e.g.
+        // "vi skal vi skal se på" -> "vi skal se på"), longest phrase first so a long
+        // repeated phrase isn't left partially collapsed by its own shorter sub-phrases.
+        const collapseRepeatedPhrases = (words, maxPhraseLen) => {
+            const out = [];
+            let i = 0;
+            const n = words.length;
+            while (i < n) {
+                let matched = false;
+                const maxLen = Math.min(maxPhraseLen, Math.floor((n - i) / 2));
+                for (let len = maxLen; len >= 1; len--) {
+                    let isRepeat = true;
+                    for (let k = 0; k < len; k++) {
+                        if (normalizeToken(words[i + k]) !== normalizeToken(words[i + len + k])) { isRepeat = false; break; }
+                    }
+                    if (!isRepeat || !words.slice(i, i + len).some((w) => normalizeToken(w).length > 0)) continue;
+
+                    let j = i + len;
+                    while (j + len <= n) {
+                        let stillRepeat = true;
+                        for (let k = 0; k < len; k++) {
+                            if (normalizeToken(words[j + k]) !== normalizeToken(words[i + k])) { stillRepeat = false; break; }
+                        }
+                        if (!stillRepeat) break;
+                        j += len;
+                    }
+
+                    out.push(...words.slice(i, i + len));
+                    i = j;
+                    matched = true;
+                    break;
+                }
+                if (!matched) {
+                    out.push(words[i]);
+                    i++;
+                }
+            }
+            return out;
+        };
+
+        // Drops a sentence that's an exact repeat of the one immediately before it
+        // (another common Whisper artifact, usually alongside phrase-level repeats).
+        const collapseDuplicateSentences = (text) => {
+            const sentences = text.match(/[^.!?]+[.!?]*/g) || [text];
+            const result = [];
+            let lastNormalized = null;
+            for (const raw of sentences) {
+                const trimmed = raw.trim();
+                if (!trimmed) continue;
+                const normalized = normalizeToken(trimmed.replace(/\s+/g, ''));
+                if (normalized && normalized === lastNormalized) continue;
+                result.push(trimmed);
+                lastNormalized = normalized;
+            }
+            return result.join(' ');
+        };
+
+        const cleanTranscriptBlock = (body) => {
+            const core = body.trim();
+            if (!core || core.startsWith('[Fejl:')) return body; // leave gaps and error markers untouched
+            const leading = body.match(/^\s*/)[0];
+            const trailing = body.match(/\s*$/)[0];
+            const words = collapseRepeatedPhrases(core.split(/\s+/), 8);
+            return leading + collapseDuplicateSentences(words.join(' ')) + trailing;
+        };
+
+        // The textarea holds one or more "=== filename ===" headers (see TranscriptFormatter.cs)
+        // - those must survive untouched; only the transcript body between them is cleaned.
+        const improveTranscriptText = (fullText) =>
+            fullText.split(/(===.*?===\n)/).map((part, idx) => (idx % 2 === 1 ? part : cleanTranscriptBlock(part))).join('');
+
+        transcriptionRoot?.addEventListener('click', async (e) => {
+            const improveBtn = e.target.closest('#improveTranscriptBtn');
+            if (improveBtn) {
+                const textarea = document.getElementById('transcriptionResultTextarea');
+                if (textarea) textarea.value = improveTranscriptText(textarea.value);
+                return;
+            }
+
+            const copyBtn = e.target.closest('#copyTranscriptBtn');
+            if (copyBtn) {
+                const textarea = document.getElementById('transcriptionResultTextarea');
+                if (!textarea) return;
+                try {
+                    await navigator.clipboard.writeText(textarea.value);
+                } catch {
+                    textarea.select();
+                    document.execCommand('copy');
+                    textarea.setSelectionRange(0, 0);
+                }
+                window.FvToast?.show('success', 'Kopieret til udklipsholder.');
+            }
+        });
+
+        // Resume watching a job that was already running when this page loaded.
+        startPollingIfJobActive();
+    })();
+</script>
