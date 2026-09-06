@@ -5,8 +5,8 @@ namespace web.Infrastructure
     /// <summary>
     /// Splits a large WAV file into smaller, still-valid WAV byte buffers on sample-frame
     /// boundaries. Used to get uncompressed lecture recordings under AiGateway's own request
-    /// body size cap (its Kestrel default is 30 MB - a single uncompressed WAV track routinely
-    /// exceeds that) without needing an external audio library.
+    /// body size cap (currently configured there as ~250 MB - a long, uncompressed WAV track
+    /// can still exceed that) without needing an external audio library.
     /// </summary>
     public static class WavSplitter
     {

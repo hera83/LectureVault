@@ -259,23 +259,26 @@ namespace web.Repositories.Transcriptions
                 combined = ex.Message;
             }
 
-            // This is Kestrel's own default request body size cap on the AiGateway server, not
-            // anything configurable from this app - an uncompressed WAV crosses it easily. Give a
-            // plain-language explanation instead of the raw ASP.NET Core wording.
+            // This is Kestrel's own request body size cap on the AiGateway server (currently
+            // configured there as ~250 MB), not anything configurable from this app - an
+            // uncompressed WAV crosses it easily on long lectures. Give a plain-language
+            // explanation instead of the raw ASP.NET Core wording.
             if (combined.Contains("request body too large", StringComparison.OrdinalIgnoreCase))
             {
-                return "Filen er for stor til AiGateway (grænsen for én transskriptionsanmodning er typisk omkring 30 MB på serveren, og ukomprimerede WAV-filer rammer det hurtigt). " +
-                       "Prøv en komprimeret lydfil (mp3, m4a, ogg) i stedet, eller få grænsen hævet på AiGateway-serveren.";
+                return "Filen er for stor til AiGateway (grænsen for én transskriptionsanmodning er typisk omkring 250 MB på serveren, og ukomprimerede WAV-filer rammer det hurtigt). " +
+                       "Prøv en komprimeret lydfil (mp3, m4a, ogg) i stedet, eller få grænsen hævet yderligere på AiGateway-serveren.";
             }
 
             return combined;
         }
 
-        // Conservative safety margin under AiGateway's own ~30 MB (30,000,000 byte) Kestrel
-        // request body cap - that limit lives on their server, not something this app can raise,
-        // so oversized WAV files (a lecture-length uncompressed recording easily hits 100+ MB)
-        // are split into chunks this far under it instead.
-        private const long MaxSingleRequestAudioBytes = 20_000_000;
+        // Conservative safety margin under AiGateway's own ~250 MB Kestrel request body cap -
+        // that limit lives on their server, not something this app can raise, so oversized WAV
+        // files (a lecture-length uncompressed recording can easily hit several hundred MB) are
+        // split into chunks this far under it instead. Only WAV is split (see WavSplitter) -
+        // compressed formats (m4a, mp3, ogg) are sent as a single request and simply need to fit
+        // under the server's cap, since splitting a compressed container isn't a plain byte cut.
+        private const long MaxSingleRequestAudioBytes = 230_000_000;
 
         private async Task<string> TranscribeSingleFileAsync(FileMetadata file, string model, string? language, CancellationToken ct)
         {
