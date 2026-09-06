@@ -260,25 +260,16 @@ namespace web.Repositories.Transcriptions
             }
 
             // This is Kestrel's own request body size cap on the AiGateway server (currently
-            // configured there as ~250 MB), not anything configurable from this app - an
-            // uncompressed WAV crosses it easily on long lectures. Give a plain-language
-            // explanation instead of the raw ASP.NET Core wording.
+            // configured there as ~300 MB), not anything configurable from this app. Give a
+            // plain-language explanation instead of the raw ASP.NET Core wording.
             if (combined.Contains("request body too large", StringComparison.OrdinalIgnoreCase))
             {
-                return "Filen er for stor til AiGateway (grænsen for én transskriptionsanmodning er typisk omkring 250 MB på serveren, og ukomprimerede WAV-filer rammer det hurtigt). " +
+                return "Filen er for stor til AiGateway (grænsen for én transskriptionsanmodning er typisk omkring 300 MB på serveren). " +
                        "Prøv en komprimeret lydfil (mp3, m4a, ogg) i stedet, eller få grænsen hævet yderligere på AiGateway-serveren.";
             }
 
             return combined;
         }
-
-        // Conservative safety margin under AiGateway's own ~250 MB Kestrel request body cap -
-        // that limit lives on their server, not something this app can raise, so oversized WAV
-        // files (a lecture-length uncompressed recording can easily hit several hundred MB) are
-        // split into chunks this far under it instead. Only WAV is split (see WavSplitter) -
-        // compressed formats (m4a, mp3, ogg) are sent as a single request and simply need to fit
-        // under the server's cap, since splitting a compressed container isn't a plain byte cut.
-        private const long MaxSingleRequestAudioBytes = 230_000_000;
 
         private async Task<string> TranscribeSingleFileAsync(FileMetadata file, string model, string? language, CancellationToken ct)
         {
@@ -286,24 +277,8 @@ namespace web.Repositories.Transcriptions
             if (!File.Exists(fullPath))
                 throw new FileNotFoundException(fullPath);
 
-            var fileLength = new FileInfo(fullPath).Length;
-            if (fileLength <= MaxSingleRequestAudioBytes || !WavSplitter.TryReadHeader(fullPath, out var wavInfo))
-            {
-                await using var stream = File.OpenRead(fullPath);
-                return await TranscribeStreamAsync(stream, file.OriginalFileName, file.ContentType, model, language, ct);
-            }
-
-            // Split on whole sample-frame boundaries and transcribe each piece in turn, then
-            // stitch the text back together as if it had been a single request.
-            var texts = new List<string>();
-            foreach (var chunkBytes in WavSplitter.SplitToChunks(fullPath, wavInfo, MaxSingleRequestAudioBytes))
-            {
-                using var chunkStream = new MemoryStream(chunkBytes);
-                var chunkText = await TranscribeStreamAsync(chunkStream, file.OriginalFileName, file.ContentType, model, language, ct);
-                if (!string.IsNullOrWhiteSpace(chunkText)) texts.Add(chunkText.Trim());
-            }
-
-            return string.Join(" ", texts);
+            await using var stream = File.OpenRead(fullPath);
+            return await TranscribeStreamAsync(stream, file.OriginalFileName, file.ContentType, model, language, ct);
         }
 
         private async Task<string> TranscribeStreamAsync(Stream stream, string fileName, string contentType, string model, string? language, CancellationToken ct)
