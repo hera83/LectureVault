@@ -1,4 +1,4 @@
-using web.Services.AiGateway.Dtos;
+using web.Services.AiGateway.Dtos.Common;
 using web.Services.AiGateway.Dtos.Health;
 using web.Services.AiGateway.Dtos.Keys;
 using web.Services.AiGateway.Dtos.KnowledgeBase;
@@ -15,22 +15,23 @@ public interface IAiGatewayService
     Task<HealthResponseDto> CheckHealthAsync(CancellationToken cancellationToken = default);
 
     Task<CreateKeyResponseDto> CreateKeyAsync(CreateKeyRequestDto request, CancellationToken cancellationToken = default);
-    Task<ListKeysResponseDto> ListKeysAsync(CancellationToken cancellationToken = default);
+    Task<List<KeyResponseDto>> ListKeysAsync(CancellationToken cancellationToken = default);
     Task<KeyResponseDto> GetKeyByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<KeyResponseDto> UpdateKeyAsync(Guid id, UpdateKeyRequestDto request, CancellationToken cancellationToken = default);
     Task<RolloverKeyResponseDto> RolloverKeyAsync(Guid id, CancellationToken cancellationToken = default);
     Task<KeyResponseDto> ActivateKeyAsync(Guid id, CancellationToken cancellationToken = default);
     Task<KeyResponseDto> DeactivateKeyAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<AuditLogResponseDto> GetKeyAuditLogAsync(Guid id, CancellationToken cancellationToken = default);
+    Task DeleteKeyAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<List<AuditLogEntryResponseDto>> GetKeyAuditLogAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<GroupResponseDto> CreateGroupAsync(CreateGroupRequestDto request, CancellationToken cancellationToken = default);
-    Task<ListGroupsResponseDto> ListGroupsAsync(CancellationToken cancellationToken = default);
+    Task<List<GroupResponseDto>> ListGroupsAsync(CancellationToken cancellationToken = default);
     Task DeleteGroupAsync(Guid id, CancellationToken cancellationToken = default);
     Task<DocumentResponseDto> UploadDocumentAsync(UploadDocumentRequestDto request, CancellationToken cancellationToken = default);
-    Task<ListDocumentsResponseDto> ListDocumentsAsync(Guid? groupId = null, CancellationToken cancellationToken = default);
+    Task<List<DocumentResponseDto>> ListDocumentsAsync(Guid? groupId = null, CancellationToken cancellationToken = default);
     Task DeleteDocumentAsync(Guid id, CancellationToken cancellationToken = default);
     Task<AiGatewayFileResultDto> DownloadDocumentAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<SearchResponseDto> SearchKnowledgeBaseAsync(SearchRequestDto request, CancellationToken cancellationToken = default);
+    Task<List<ChunkMatchResponseDto>> SearchKnowledgeBaseAsync(SearchRequestDto request, CancellationToken cancellationToken = default);
     Task<RagChatResponseDto> RagChatAsync(RagChatRequestDto request, CancellationToken cancellationToken = default);
 
     Task<LogSearchResponseDto> SearchLogsAsync(LogSearchRequestDto request, CancellationToken cancellationToken = default);
@@ -44,7 +45,7 @@ public interface IAiGatewayService
     Task<ListRunningModelsResponseDto> OllamaListRunningModelsAsync(CancellationToken cancellationToken = default);
     Task<ShowModelResponseDto> OllamaShowModelAsync(ShowModelRequestDto request, CancellationToken cancellationToken = default);
     Task OllamaCopyModelAsync(CopyModelRequestDto request, CancellationToken cancellationToken = default);
-    Task OllamaDeleteModelAsync(DeleteModelRequestDto request, CancellationToken cancellationToken = default);
+    Task OllamaDeleteModelAsync(string model, CancellationToken cancellationToken = default);
     Task<PullModelResponseDto> OllamaPullModelAsync(PullModelRequestDto request, CancellationToken cancellationToken = default);
     Task<PushModelResponseDto> OllamaPushModelAsync(PushModelRequestDto request, CancellationToken cancellationToken = default);
     Task<CreateModelResponseDto> OllamaCreateModelAsync(CreateModelRequestDto request, CancellationToken cancellationToken = default);
@@ -62,7 +63,7 @@ public interface IAiGatewayService
     Task<TranslationResponseDto> SpeachesTranslateAsync(TranslateRequestDto request, CancellationToken cancellationToken = default);
     Task<SpeachesListModelsResponseDto> SpeachesListModelsAsync(string? task = null, CancellationToken cancellationToken = default);
     Task<ListAudioModelsResponseDto> SpeachesListAudioModelsAsync(CancellationToken cancellationToken = default);
-    Task<SpeachesListModelsResponseDto> SpeachesListVoicesAsync(CancellationToken cancellationToken = default);
+    Task<ListVoicesResponseDto> SpeachesListVoicesAsync(CancellationToken cancellationToken = default);
     Task<ModelDto> SpeachesGetModelAsync(string modelId, CancellationToken cancellationToken = default);
     Task SpeachesDownloadModelAsync(string modelId, CancellationToken cancellationToken = default);
     Task SpeachesDeleteModelAsync(string modelId, CancellationToken cancellationToken = default);

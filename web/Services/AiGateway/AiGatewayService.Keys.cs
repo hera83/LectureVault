@@ -10,10 +10,10 @@ public partial class AiGatewayService
         return await PostAsync<CreateKeyRequestDto, CreateKeyResponseDto>(client, "Keys/Create", request, cancellationToken);
     }
 
-    public async Task<ListKeysResponseDto> ListKeysAsync(CancellationToken cancellationToken = default)
+    public async Task<List<KeyResponseDto>> ListKeysAsync(CancellationToken cancellationToken = default)
     {
         using var client = await CreateClientAsync(cancellationToken);
-        return await GetAsync<ListKeysResponseDto>(client, "Keys/List", cancellationToken);
+        return await GetAsync<List<KeyResponseDto>>(client, "Keys/List", cancellationToken);
     }
 
     public async Task<KeyResponseDto> GetKeyByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -46,9 +46,15 @@ public partial class AiGatewayService
         return await PostAsync<KeyResponseDto>(client, $"Keys/Deactivate/{id}", cancellationToken);
     }
 
-    public async Task<AuditLogResponseDto> GetKeyAuditLogAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task DeleteKeyAsync(Guid id, CancellationToken cancellationToken = default)
     {
         using var client = await CreateClientAsync(cancellationToken);
-        return await GetAsync<AuditLogResponseDto>(client, $"Keys/GetAuditLog/{id}", cancellationToken);
+        await DeleteAsync(client, $"Keys/Delete/{id}", cancellationToken);
+    }
+
+    public async Task<List<AuditLogEntryResponseDto>> GetKeyAuditLogAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        using var client = await CreateClientAsync(cancellationToken);
+        return await GetAsync<List<AuditLogEntryResponseDto>>(client, $"Keys/GetAuditLog/{id}", cancellationToken);
     }
 }

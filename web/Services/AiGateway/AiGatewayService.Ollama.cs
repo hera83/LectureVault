@@ -62,10 +62,10 @@ public partial class AiGatewayService
         await PostNoContentAsync(client, "Ollama/CopyModel", request, cancellationToken);
     }
 
-    public async Task OllamaDeleteModelAsync(DeleteModelRequestDto request, CancellationToken cancellationToken = default)
+    public async Task OllamaDeleteModelAsync(string model, CancellationToken cancellationToken = default)
     {
         using var client = await CreateClientAsync(cancellationToken);
-        await DeleteWithBodyAsync(client, "Ollama/DeleteModel", request, cancellationToken);
+        await DeleteAsync(client, $"Ollama/DeleteModel?Model={Uri.EscapeDataString(model)}", cancellationToken);
     }
 
     public async Task<PullModelResponseDto> OllamaPullModelAsync(PullModelRequestDto request, CancellationToken cancellationToken = default)
@@ -115,9 +115,7 @@ public partial class AiGatewayService
             if (string.IsNullOrWhiteSpace(line))
                 continue;
 
-            var chunk = JsonSerializer.Deserialize<TResponse>(line, JsonOptions);
-            if (chunk is not null)
-                yield return chunk;
+            yield return Deserialize<TResponse>(line, endpoint);
         }
     }
 }

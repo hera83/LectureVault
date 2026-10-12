@@ -956,8 +956,8 @@ namespace web.Controllers
 
             try
             {
-                var groups = (await _aiGatewayService.ListGroupsAsync(cancellationToken)).Groups ?? [];
-                var documents = (await _aiGatewayService.ListDocumentsAsync(null, cancellationToken)).Documents ?? [];
+                var groups = await _aiGatewayService.ListGroupsAsync(cancellationToken);
+                var documents = await _aiGatewayService.ListDocumentsAsync(null, cancellationToken);
 
                 var groupNameById = groups.ToDictionary(g => g.Id, g => g.Name ?? string.Empty);
                 var documentCountByGroup = documents

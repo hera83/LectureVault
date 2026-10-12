@@ -1,4 +1,4 @@
-namespace web.Services.AiGateway.Dtos;
+namespace web.Services.AiGateway.Dtos.Common;
 
 public class AiGatewayFileResultDto
 {

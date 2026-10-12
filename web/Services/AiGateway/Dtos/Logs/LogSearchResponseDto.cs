@@ -13,6 +13,6 @@ public class LogSearchResponseDto
     [JsonPropertyName("pageSize")]
     public int PageSize { get; set; }
 
-    [JsonPropertyName("entries")]
-    public List<LogEntryResponseDto>? Entries { get; set; }
+    [JsonPropertyName("items")]
+    public List<LogEntryResponseDto>? Items { get; set; }
 }

@@ -16,6 +16,9 @@ public class CreateKeyResponseDto
     [JsonPropertyName("contactInfo")]
     public string? ContactInfo { get; set; }
 
+    [JsonPropertyName("keyPreview")]
+    public string? KeyPreview { get; set; }
+
     [JsonPropertyName("isActive")]
     public bool IsActive { get; set; }
 
@@ -25,8 +28,8 @@ public class CreateKeyResponseDto
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; }
 
-    [JsonPropertyName("lastRotatedAt")]
-    public DateTime? LastRotatedAt { get; set; }
+    [JsonPropertyName("rolledOverAt")]
+    public DateTime? RolledOverAt { get; set; }
 
     [JsonPropertyName("lastUsedAt")]
     public DateTime? LastUsedAt { get; set; }

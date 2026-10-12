@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.WebSockets;
 using System.Text.Json;
-using web.Services.AiGateway.Dtos;
+using web.Services.AiGateway.Dtos.Common;
 using web.Services.AiGateway.Dtos.Speaches;
 
 namespace web.Services.AiGateway;
@@ -61,7 +61,7 @@ public partial class AiGatewayService
 
     private async Task<AiGatewayRealtimeTranscriptionSession> ConnectRealtimeTranscriptionAsync(string? model, string? language, CancellationToken cancellationToken)
     {
-        var config = await _configurationProvider.GetActiveConfigurationAsync(cancellationToken);
+        var config = await configurationProvider.GetActiveConfigurationAsync(cancellationToken);
         var socket = new ClientWebSocket();
         if (!string.IsNullOrWhiteSpace(config.ApiKey))
         {
@@ -131,10 +131,10 @@ public partial class AiGatewayService
         return await GetAsync<ListAudioModelsResponseDto>(client, "Speaches/ListAudioModels", cancellationToken);
     }
 
-    public async Task<ListModelsResponseDto> SpeachesListVoicesAsync(CancellationToken cancellationToken = default)
+    public async Task<ListVoicesResponseDto> SpeachesListVoicesAsync(CancellationToken cancellationToken = default)
     {
         using var client = await CreateClientAsync(cancellationToken);
-        return await GetAsync<ListModelsResponseDto>(client, "Speaches/ListVoices", cancellationToken);
+        return await GetAsync<ListVoicesResponseDto>(client, "Speaches/ListVoices", cancellationToken);
     }
 
     public async Task<ModelDto> SpeachesGetModelAsync(string modelId, CancellationToken cancellationToken = default)
@@ -146,8 +146,7 @@ public partial class AiGatewayService
     public async Task SpeachesDownloadModelAsync(string modelId, CancellationToken cancellationToken = default)
     {
         using var client = await CreateClientAsync(cancellationToken);
-        using var response = await client.PostAsync($"Speaches/DownloadModel/{Uri.EscapeDataString(modelId)}", null, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        await PostNoContentAsync(client, $"Speaches/DownloadModel/{Uri.EscapeDataString(modelId)}", cancellationToken);
     }
 
     public async Task SpeachesDeleteModelAsync(string modelId, CancellationToken cancellationToken = default)
@@ -183,11 +182,7 @@ public partial class AiGatewayService
     public async Task<MessageResponseDto> SpeachesStopModelAsync(string modelId, CancellationToken cancellationToken = default)
     {
         using var client = await CreateClientAsync(cancellationToken);
-        using var response = await client.DeleteAsync($"Speaches/StopModel/{Uri.EscapeDataString(modelId)}", cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-        var payload = await response.Content.ReadAsStringAsync(cancellationToken);
-        return JsonSerializer.Deserialize<MessageResponseDto>(payload, JsonOptions)
-               ?? throw new AiGatewayException(HttpStatusCode.InternalServerError, "Kunne ikke parse AiGateway response.");
+        return await DeleteAsync<MessageResponseDto>(client, $"Speaches/StopModel/{Uri.EscapeDataString(modelId)}", cancellationToken);
     }
 
     public async Task<AiGatewayFileResultDto> SpeachesSynthesizeSpeechAsync(SynthesizeRequestDto request, CancellationToken cancellationToken = default)
@@ -252,8 +247,6 @@ public partial class AiGatewayService
     {
         using var response = await SendMultipartAsync(client, HttpMethod.Post, endpoint, content, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        var payload = await response.Content.ReadAsStringAsync(cancellationToken);
-        return JsonSerializer.Deserialize<TResponse>(payload, JsonOptions)
-               ?? throw new AiGatewayException(HttpStatusCode.InternalServerError, "Kunne ikke parse AiGateway response.");
+        return await ReadJsonAsync<TResponse>(response, cancellationToken);
     }
 }

@@ -1,4 +1,4 @@
-using web.Services.AiGateway.Dtos;
+using web.Services.AiGateway.Dtos.Common;
 using web.Services.AiGateway.Dtos.KnowledgeBase;
 
 namespace web.Services.AiGateway;
@@ -11,10 +11,10 @@ public partial class AiGatewayService
         return await PostAsync<CreateGroupRequestDto, GroupResponseDto>(client, "KnowledgeBase/CreateGroup", request, cancellationToken);
     }
 
-    public async Task<ListGroupsResponseDto> ListGroupsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<GroupResponseDto>> ListGroupsAsync(CancellationToken cancellationToken = default)
     {
         using var client = await CreateClientAsync(cancellationToken);
-        return await GetAsync<ListGroupsResponseDto>(client, "KnowledgeBase/ListGroups", cancellationToken);
+        return await GetAsync<List<GroupResponseDto>>(client, "KnowledgeBase/ListGroups", cancellationToken);
     }
 
     public async Task DeleteGroupAsync(Guid id, CancellationToken cancellationToken = default)
@@ -33,7 +33,7 @@ public partial class AiGatewayService
         return await SendMultipartForJsonAsync<DocumentResponseDto>(client, "KnowledgeBase/UploadDocument", content, cancellationToken);
     }
 
-    public async Task<ListDocumentsResponseDto> ListDocumentsAsync(Guid? groupId = null, CancellationToken cancellationToken = default)
+    public async Task<List<DocumentResponseDto>> ListDocumentsAsync(Guid? groupId = null, CancellationToken cancellationToken = default)
     {
         using var client = await CreateClientAsync(cancellationToken);
         var endpoint = "KnowledgeBase/ListDocuments";
@@ -42,7 +42,7 @@ public partial class AiGatewayService
             endpoint += $"?groupId={groupId.Value}";
         }
 
-        return await GetAsync<ListDocumentsResponseDto>(client, endpoint, cancellationToken);
+        return await GetAsync<List<DocumentResponseDto>>(client, endpoint, cancellationToken);
     }
 
     public async Task DeleteDocumentAsync(Guid id, CancellationToken cancellationToken = default)
@@ -57,10 +57,10 @@ public partial class AiGatewayService
         return await GetFileAsync(client, $"KnowledgeBase/DownloadDocument/{id}", cancellationToken);
     }
 
-    public async Task<SearchResponseDto> SearchKnowledgeBaseAsync(SearchRequestDto request, CancellationToken cancellationToken = default)
+    public async Task<List<ChunkMatchResponseDto>> SearchKnowledgeBaseAsync(SearchRequestDto request, CancellationToken cancellationToken = default)
     {
         using var client = await CreateClientAsync(cancellationToken);
-        return await PostAsync<SearchRequestDto, SearchResponseDto>(client, "KnowledgeBase/Search", request, cancellationToken);
+        return await PostAsync<SearchRequestDto, List<ChunkMatchResponseDto>>(client, "KnowledgeBase/Search", request, cancellationToken);
     }
 
     public async Task<RagChatResponseDto> RagChatAsync(RagChatRequestDto request, CancellationToken cancellationToken = default)

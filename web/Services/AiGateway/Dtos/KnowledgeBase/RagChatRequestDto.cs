@@ -13,7 +13,7 @@ public class RagChatRequestDto
     [JsonPropertyName("messages")]
     [Required]
     [MinLength(1)]
-    public List<ChatMessageDto> Messages { get; set; } = new();
+    public List<ChatMessageDto> Messages { get; set; } = [];
 
     [JsonPropertyName("topK")]
     [Range(1, 100)]
